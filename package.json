@@ -1,0 +1,27 @@
+{
+  "name": "docuchat",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Chat with your documents: Node.js, Express, MongoDB, Gemini RAG",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Milind300/docuchat.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Milind300/docuchat/issues"
+  },
+  "homepage": "https://github.com/Milind300/docuchat#readme",
+  "dependencies": {
+    "dotenv": "^18.0.5",
+    "express": "^5.2.1",
+    "mongoose": "^9.11.0"
+  }
+}
