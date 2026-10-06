@@ -78,3 +78,22 @@ button {
 }
 
 button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.hidden { display: none !important; }
+
+/* header with logout */
+header { display: flex; justify-content: space-between; align-items: center; }
+.header-right { display: flex; align-items: center; gap: 12px; font-size: 14px; font-weight: normal; }
+button.small { padding: 6px 12px; font-size: 14px; background: rgba(255,255,255,0.2); }
+
+/* login card */
+.auth { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.auth-card { width: 100%; max-width: 380px; background: white; padding: 28px; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+.auth-card h1 { margin: 0 0 4px; color: #4f46e5; }
+.auth-card p { color: #555; margin: 0 0 16px; }
+.auth-card form { display: flex; flex-direction: column; gap: 10px; }
+.auth-card input { padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; }
+.auth-card .error { color: #b91c1c; min-height: 20px; margin: 10px 0 0; font-size: 14px; }
+.auth-card .switch { margin: 8px 0 0; font-size: 14px; }
+.auth-card a { color: #4f46e5; }
+.auth-card .privacy { font-size: 12px; color: #888; margin-top: 16px; }

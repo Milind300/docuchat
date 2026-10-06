@@ -7,8 +7,36 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="app">
-    <header>DocuChat</header>
+  <!-- LOGIN / REGISTER SCREEN -->
+  <div id="auth-screen" class="auth hidden">
+    <div class="auth-card">
+      <h1>DocuChat</h1>
+      <p id="auth-subtitle">Log in to continue</p>
+
+      <form id="auth-form">
+        <input id="auth-email" type="email" placeholder="Email" autocomplete="email" required />
+        <input id="auth-password" type="password" placeholder="Password (min 8 characters)" autocomplete="current-password" required />
+        <button type="submit" id="auth-submit">Log in</button>
+      </form>
+
+      <p id="auth-error" class="error"></p>
+      <p class="switch">
+        <span id="auth-switch-text">No account?</span>
+        <a href="#" id="auth-switch">Register</a>
+      </p>
+      <p class="privacy">Do not share sensitive or private data. The free AI tier may use prompts for improvement.</p>
+    </div>
+  </div>
+
+  <!-- CHAT SCREEN -->
+  <div id="chat-screen" class="app hidden">
+    <header>
+      <span>DocuChat</span>
+      <span class="header-right">
+        <span id="user-email"></span>
+        <button id="logout-btn" class="small">Log out</button>
+      </span>
+    </header>
 
     <main id="messages"></main>
 
