@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/Milind300/docuchat#readme",
   "dependencies": {
+    "@google/genai": "^2.27.0",
     "bcryptjs": "^3.0.3",
     "dotenv": "^18.0.5",
     "express": "^5.2.1",
