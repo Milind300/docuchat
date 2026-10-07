@@ -17,13 +17,35 @@ const input = document.getElementById('message-input');
 const messages = document.getElementById('messages');
 const sendBtn = chatForm.querySelector('button');
 
+const newChatBtn = document.getElementById('new-chat-btn');
+const conversationList = document.getElementById('conversation-list');
+
 let mode = 'login';          // 'login' or 'register'
 let conversationId = null;   // which chat we are in (null = a new chat)
+let busy = false;            // true while waiting for an answer
 
 // ---------- Token helpers ----------
 const getToken = () => localStorage.getItem('token');
 const setToken = (t) => localStorage.setItem('token', t);
 const clearToken = () => localStorage.removeItem('token');
+
+// ---------- Fetch with the login token ----------
+async function api(path, options = {}) {
+  const res = await fetch(path, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer ' + getToken(),
+    },
+  });
+  if (res.status === 401) {          // token missing or expired
+    clearToken();
+    setMode('login');
+    showAuth();
+    throw new Error('unauthorized');
+  }
+  return res;
+}
 
 // ---------- Screen switching ----------
 function showAuth() {
@@ -35,9 +57,8 @@ function showChat(email) {
   authScreen.classList.add('hidden');
   chatScreen.classList.remove('hidden');
   userEmail.textContent = email;
-  conversationId = null;
-  messages.innerHTML = '';
-  addMessage('Hi! Ask me anything.', 'bot');
+  startNewChat();
+  loadConversations();
 }
 
 function setMode(newMode) {
@@ -98,7 +119,81 @@ logoutBtn.addEventListener('click', () => {
   showAuth();
 });
 
-// ---------- Chat (real) ----------
+// ---------- Sidebar: the list of chats ----------
+function markActive() {
+  for (const li of conversationList.querySelectorAll('li[data-id]')) {
+    li.classList.toggle('active', li.dataset.id === conversationId);
+  }
+}
+
+function renderConversations(list) {
+  conversationList.innerHTML = '';
+
+  if (list.length === 0) {
+    const li = document.createElement('li');
+    li.className = 'empty';
+    li.textContent = 'No chats yet';
+    conversationList.appendChild(li);
+    return;
+  }
+
+  for (const c of list) {
+    const li = document.createElement('li');
+    li.dataset.id = c._id;
+    li.textContent = c.title;       // textContent keeps titles safe
+    li.title = c.title;
+    li.addEventListener('click', () => openConversation(c._id));
+    conversationList.appendChild(li);
+  }
+  markActive();
+}
+
+async function loadConversations() {
+  try {
+    const res = await api('/api/conversations');
+    if (!res.ok) return;
+    const data = await res.json();
+    renderConversations(data.conversations);
+  } catch {
+    /* the sidebar is optional, so ignore errors here */
+  }
+}
+
+async function openConversation(id) {
+  if (busy || id === conversationId) return;
+
+  try {
+    const res = await api('/api/conversations/' + id + '/messages');
+    const data = await res.json();
+    if (!res.ok) {
+      addMessage(data.message || 'Could not load that chat', 'bot');
+      return;
+    }
+
+    conversationId = data.conversationId;
+    messages.innerHTML = '';
+    for (const m of data.messages) {
+      addMessage(m.content, m.role === 'user' ? 'user' : 'bot');
+    }
+    markActive();
+  } catch {
+    /* unauthorized is already handled inside api() */
+  }
+}
+
+function startNewChat() {
+  conversationId = null;
+  messages.innerHTML = '';
+  addMessage('Hi! Ask me anything.', 'bot');
+  markActive();
+}
+
+newChatBtn.addEventListener('click', () => {
+  if (busy) return;
+  startNewChat();
+});
+
+// ---------- Chat ----------
 function addMessage(text, role) {
   const div = document.createElement('div');
   div.className = 'message ' + role;
@@ -111,25 +206,17 @@ function addMessage(text, role) {
 async function sendMessage(text) {
   addMessage(text, 'user');
   const bubble = addMessage('Thinking...', 'bot');
+  busy = true;
   sendBtn.disabled = true;
+  let saved = false;
 
   try {
-    const res = await fetch('/api/chat', {
+    const res = await api('/api/chat', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: 'Bearer ' + getToken(),
-      },
       body: JSON.stringify({ message: text, conversationId }),
     });
     const data = await res.json();
 
-    if (res.status === 401) {          // token missing or expired
-      clearToken();
-      setMode('login');
-      showAuth();
-      return;
-    }
     if (!res.ok) {
       bubble.textContent = data.message || 'Something went wrong';
       return;
@@ -137,18 +224,22 @@ async function sendMessage(text) {
 
     conversationId = data.conversationId;   // remember the chat for the next question
     bubble.textContent = data.reply;
-  } catch {
-    bubble.textContent = 'Cannot reach the server';
+    saved = true;
+  } catch (err) {
+    if (err.message !== 'unauthorized') bubble.textContent = 'Cannot reach the server';
   } finally {
+    busy = false;
     sendBtn.disabled = false;
     messages.scrollTop = messages.scrollHeight;
   }
+
+  if (saved) await loadConversations();     // refresh the sidebar list
 }
 
 chatForm.addEventListener('submit', (e) => {
   e.preventDefault();
   const text = input.value.trim();
-  if (!text) return;
+  if (!text || busy) return;
   input.value = '';
   sendMessage(text);
 });

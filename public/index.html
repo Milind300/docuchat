@@ -30,20 +30,29 @@
 
   <!-- CHAT SCREEN -->
   <div id="chat-screen" class="app hidden">
-    <header>
-      <span>DocuChat</span>
-      <span class="header-right">
-        <span id="user-email"></span>
-        <button id="logout-btn" class="small">Log out</button>
-      </span>
-    </header>
+    <aside id="sidebar">
+      <button id="new-chat-btn" type="button">+ New chat</button>
+      <ul id="conversation-list">
+        <li class="empty">Your chats will appear here</li>
+      </ul>
+    </aside>
 
-    <main id="messages"></main>
+    <div class="chat-pane">
+      <header>
+        <span>DocuChat</span>
+        <span class="header-right">
+          <span id="user-email"></span>
+          <button id="logout-btn" class="small">Log out</button>
+        </span>
+      </header>
 
-    <form id="chat-form">
-      <input id="message-input" type="text" placeholder="Type a message..." autocomplete="off" required />
-      <button type="submit">Send</button>
-    </form>
+      <main id="messages"></main>
+
+      <form id="chat-form">
+        <input id="message-input" type="text" placeholder="Type a message..." autocomplete="off" required />
+        <button type="submit">Send</button>
+      </form>
+    </div>
   </div>
 
   <script src="app.js"></script>
