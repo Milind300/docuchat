@@ -1,5 +1,3 @@
-# docuchat
-Chat with your documents: Node.js, Express, MongoDB, Gemini RAG
 # DocuChat
 
 > An AI chat application with per-user conversation memory, built on Node.js, Express and MongoDB, powered by Google Gemini. Document Q&A (RAG) is the next milestone.
