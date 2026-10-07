@@ -14,33 +14,33 @@
 
 ## Status
 
-| Feature | State |
-|---|---|
-| Register / login (JWT, bcrypt) | Done |
-| Protected API routes | Done |
-| Gemini chat with conversation memory | Done |
-| Chats and messages saved per user | Done |
-| Usage limits (per user per minute, per user per day, app-wide) | Done |
-| Chat history sidebar | In progress |
-| Streaming responses (SSE) | Planned |
-| Document upload + RAG (Atlas Vector Search) | Planned |
-| Usage analytics (aggregation pipelines) | Planned |
-| Tests, CI, deployment | Planned |
+| Feature                                                        | State       |
+| -------------------------------------------------------------- | ----------- |
+| Register / login (JWT, bcrypt)                                 | Done        |
+| Protected API routes                                           | Done        |
+| Gemini chat with conversation memory                           | Done        |
+| Chats and messages saved per user                              | Done        |
+| Usage limits (per user per minute, per user per day, app-wide) | Done        |
+| Chat history sidebar                                           | In progress |
+| Streaming responses (SSE)                                      | Planned     |
+| Document upload + RAG (Atlas Vector Search)                    | Planned     |
+| Usage analytics (aggregation pipelines)                        | Planned     |
+| Tests, CI, deployment                                          | Planned     |
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology | Purpose |
-|---|---|---|
-| Runtime | Node.js 24 (ES modules) | Non-blocking I/O suits an app that mostly waits on the database and the LLM |
-| Web framework | Express 5 | REST API; async errors are forwarded to the error handler automatically |
-| Database | MongoDB Atlas (free tier) | Users, conversations, messages |
-| ODM | Mongoose 9 | Schemas, validation, indexes |
-| LLM | Google Gemini via `@google/genai` | Chat completions |
-| Auth | JWT (`jsonwebtoken`) + `bcryptjs` | Stateless sessions, hashed passwords |
-| Config | `dotenv` | Secrets kept out of Git |
-| Frontend | Vanilla HTML, CSS, JavaScript | Served statically by Express, no build step |
+| Layer         | Technology                        | Purpose                                                                     |
+| ------------- | --------------------------------- | --------------------------------------------------------------------------- |
+| Runtime       | Node.js 24 (ES modules)           | Non-blocking I/O suits an app that mostly waits on the database and the LLM |
+| Web framework | Express 5                         | REST API; async errors are forwarded to the error handler automatically     |
+| Database      | MongoDB Atlas (free tier)         | Users, conversations, messages                                              |
+| ODM           | Mongoose 9                        | Schemas, validation, indexes                                                |
+| LLM           | Google Gemini via `@google/genai` | Chat completions                                                            |
+| Auth          | JWT (`jsonwebtoken`) + `bcryptjs` | Stateless sessions, hashed passwords                                        |
+| Config        | `dotenv`                          | Secrets kept out of Git                                                     |
+| Frontend      | Vanilla HTML, CSS, JavaScript     | Served statically by Express, no build step                                 |
 
 ---
 
@@ -99,55 +99,49 @@ Design points:
 
 ```mermaid
 erDiagram
+  direction LR
   USER ||--o{ CONVERSATION : owns
   CONVERSATION ||--o{ MESSAGE : contains
-  USER ||--o{ MESSAGE : wrote
   USER {
-    ObjectId _id
     string email
     string passwordHash
   }
   CONVERSATION {
     ObjectId userId
     string title
-    date updatedAt
   }
   MESSAGE {
-    ObjectId conversationId
-    ObjectId userId
     string role
     string content
-    number tokensIn
-    number tokensOut
   }
 ```
 
-| Collection | Index | Why |
-|---|---|---|
-| `users` | unique `email` | One account per email |
-| `conversations` | `{ userId, updatedAt: -1 }` | "My chats, newest first" without a collection scan |
-| `messages` | `{ conversationId, createdAt }` | "This chat in order" without a collection scan |
+| Collection      | Index                           | Why                                                |
+| --------------- | ------------------------------- | -------------------------------------------------- |
+| `users`         | unique `email`                  | One account per email                              |
+| `conversations` | `{ userId, updatedAt: -1 }`     | "My chats, newest first" without a collection scan |
+| `messages`      | `{ conversationId, createdAt }` | "This chat in order" without a collection scan     |
 
 Messages are a separate collection, so a long chat never inflates one document and can be paged.
 
 ### API
 
-| Method | Route | Auth | Description |
-|---|---|---|---|
-| POST | `/api/auth/register` | No | Create account, returns JWT |
-| POST | `/api/auth/login` | No | Returns JWT |
-| GET | `/api/auth/me` | Yes | Current user |
-| POST | `/api/chat` | Yes | Ask a question, optionally continue a conversation |
-| GET | `/api/conversations` | Yes | List my conversations (in progress) |
-| GET | `/api/health` | No | Health check |
+| Method | Route                | Auth | Description                                        |
+| ------ | -------------------- | ---- | -------------------------------------------------- |
+| POST   | `/api/auth/register` | No   | Create account, returns JWT                        |
+| POST   | `/api/auth/login`    | No   | Returns JWT                                        |
+| GET    | `/api/auth/me`       | Yes  | Current user                                       |
+| POST   | `/api/chat`          | Yes  | Ask a question, optionally continue a conversation |
+| GET    | `/api/conversations` | Yes  | List my conversations (in progress)                |
+| GET    | `/api/health`        | No   | Health check                                       |
 
 ### Usage limits
 
-| Rule | Value |
-|---|---|
-| Messages per user per minute | 3 |
-| Messages per user per day | 20 |
-| Messages per day, whole app | 450 |
+| Rule                         | Value |
+| ---------------------------- | ----- |
+| Messages per user per minute | 3     |
+| Messages per user per day    | 20    |
+| Messages per day, whole app  | 450   |
 
 The app shares one free-tier Gemini key, so limits protect the daily request budget. Counts are derived from saved messages, so no extra collection or in-memory state is needed, which also keeps the app compatible with serverless hosting. The day boundary follows Pacific midnight, matching how Google's daily quota resets.
 
@@ -197,13 +191,13 @@ Open http://localhost:4000.
 
 **Environment variables**
 
-| Variable | Description |
-|---|---|
-| `MONGO_URI` | MongoDB Atlas connection string, with database name `docuchat` |
-| `PORT` | Server port (default 4000) |
-| `JWT_SECRET` | Long random string used to sign tokens |
-| `GEMINI_API_KEY` | Google AI Studio key |
-| `GEMINI_MODEL` | Chat model ID (kept in config because free-tier models change) |
+| Variable         | Description                                                    |
+| ---------------- | -------------------------------------------------------------- |
+| `MONGO_URI`      | MongoDB Atlas connection string, with database name `docuchat` |
+| `PORT`           | Server port (default 4000)                                     |
+| `JWT_SECRET`     | Long random string used to sign tokens                         |
+| `GEMINI_API_KEY` | Google AI Studio key                                           |
+| `GEMINI_MODEL`   | Chat model ID (kept in config because free-tier models change) |
 
 ---
 
