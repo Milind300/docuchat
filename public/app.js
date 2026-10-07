@@ -15,8 +15,10 @@ const logoutBtn = document.getElementById('logout-btn');
 const chatForm = document.getElementById('chat-form');
 const input = document.getElementById('message-input');
 const messages = document.getElementById('messages');
+const sendBtn = chatForm.querySelector('button');
 
-let mode = 'login'; // 'login' or 'register'
+let mode = 'login';          // 'login' or 'register'
+let conversationId = null;   // which chat we are in (null = a new chat)
 
 // ---------- Token helpers ----------
 const getToken = () => localStorage.getItem('token');
@@ -33,8 +35,9 @@ function showChat(email) {
   authScreen.classList.add('hidden');
   chatScreen.classList.remove('hidden');
   userEmail.textContent = email;
+  conversationId = null;
   messages.innerHTML = '';
-  addMessage('Hi! Ask me anything. (Replies are fake for now.)', 'bot');
+  addMessage('Hi! Ask me anything.', 'bot');
 }
 
 function setMode(newMode) {
@@ -95,7 +98,7 @@ logoutBtn.addEventListener('click', () => {
   showAuth();
 });
 
-// ---------- Chat (still fake) ----------
+// ---------- Chat (real) ----------
 function addMessage(text, role) {
   const div = document.createElement('div');
   div.className = 'message ' + role;
@@ -105,20 +108,49 @@ function addMessage(text, role) {
   return div;
 }
 
-function fakeBotReply(userText) {
-  const bubble = addMessage('Typing...', 'bot');
-  setTimeout(() => {
-    bubble.textContent = 'This is a fake reply to: "' + userText + '"';
-  }, 800);
+async function sendMessage(text) {
+  addMessage(text, 'user');
+  const bubble = addMessage('Thinking...', 'bot');
+  sendBtn.disabled = true;
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + getToken(),
+      },
+      body: JSON.stringify({ message: text, conversationId }),
+    });
+    const data = await res.json();
+
+    if (res.status === 401) {          // token missing or expired
+      clearToken();
+      setMode('login');
+      showAuth();
+      return;
+    }
+    if (!res.ok) {
+      bubble.textContent = data.message || 'Something went wrong';
+      return;
+    }
+
+    conversationId = data.conversationId;   // remember the chat for the next question
+    bubble.textContent = data.reply;
+  } catch {
+    bubble.textContent = 'Cannot reach the server';
+  } finally {
+    sendBtn.disabled = false;
+    messages.scrollTop = messages.scrollHeight;
+  }
 }
 
 chatForm.addEventListener('submit', (e) => {
   e.preventDefault();
   const text = input.value.trim();
   if (!text) return;
-  addMessage(text, 'user');
   input.value = '';
-  fakeBotReply(text);
+  sendMessage(text);
 });
 
 // ---------- On page load: am I already logged in? ----------
