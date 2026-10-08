@@ -1,60 +1,82 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>DocuChat</title>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-  <!-- LOGIN / REGISTER SCREEN -->
-  <div id="auth-screen" class="auth hidden">
-    <div class="auth-card">
-      <h1>DocuChat</h1>
-      <p id="auth-subtitle">Log in to continue</p>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DocuChat</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- LOGIN / REGISTER SCREEN -->
+    <div id="auth-screen" class="auth hidden">
+      <div class="auth-card">
+        <h1>DocuChat</h1>
+        <p id="auth-subtitle">Log in to continue</p>
 
-      <form id="auth-form">
-        <input id="auth-email" type="email" placeholder="Email" autocomplete="email" required />
-        <input id="auth-password" type="password" placeholder="Password (min 8 characters)" autocomplete="current-password" required />
-        <button type="submit" id="auth-submit">Log in</button>
-      </form>
+        <form id="auth-form">
+          <input
+            id="auth-email"
+            type="email"
+            placeholder="Email"
+            autocomplete="email"
+            required
+          />
+          <input
+            id="auth-password"
+            type="password"
+            placeholder="Password (min 8 characters)"
+            autocomplete="current-password"
+            required
+          />
+          <button type="submit" id="auth-submit">Log in</button>
+        </form>
 
-      <p id="auth-error" class="error"></p>
-      <p class="switch">
-        <span id="auth-switch-text">No account?</span>
-        <a href="#" id="auth-switch">Register</a>
-      </p>
-      <p class="privacy">Do not share sensitive or private data. The free AI tier may use prompts for improvement.</p>
+        <p id="auth-error" class="error"></p>
+        <p class="switch">
+          <span id="auth-switch-text">No account?</span>
+          <a href="#" id="auth-switch">Register</a>
+        </p>
+        <p class="privacy">
+          Do not share sensitive or private data. The free AI tier may use
+          prompts for improvement.
+        </p>
+      </div>
     </div>
-  </div>
 
-  <!-- CHAT SCREEN -->
-  <div id="chat-screen" class="app hidden">
-    <aside id="sidebar">
-      <button id="new-chat-btn" type="button">+ New chat</button>
-      <ul id="conversation-list">
-        <li class="empty">Your chats will appear here</li>
-      </ul>
-    </aside>
+    <!-- CHAT SCREEN -->
+    <div id="chat-screen" class="app hidden">
+      <aside id="sidebar">
+        <button id="new-chat-btn" type="button">+ New chat</button>
+        <ul id="conversation-list">
+          <li class="empty">Your chats will appear here</li>
+        </ul>
+      </aside>
 
-    <div class="chat-pane">
-      <header>
-        <span>DocuChat</span>
-        <span class="header-right">
-          <span id="user-email"></span>
-          <button id="logout-btn" class="small">Log out</button>
-        </span>
-      </header>
+      <div class="chat-pane">
+        <header>
+          <span>DocuChat</span>
+          <span class="header-right">
+            <span id="user-email"></span>
+            <button id="logout-btn" class="small">Log out</button>
+          </span>
+        </header>
 
-      <main id="messages"></main>
+        <main id="messages"></main>
 
-      <form id="chat-form">
-        <input id="message-input" type="text" placeholder="Type a message..." autocomplete="off" required />
-        <button type="submit">Send</button>
-      </form>
+        <form id="chat-form">
+          <input
+            id="message-input"
+            type="text"
+            placeholder="Type a message..."
+            autocomplete="off"
+            required
+          />
+          <button type="submit">Send</button>
+        </form>
+      </div>
     </div>
-  </div>
 
-  <script src="app.js"></script>
-</body>
+    <script src="format.js"></script>
+    <script src="app.js"></script>
+  </body>
 </html>

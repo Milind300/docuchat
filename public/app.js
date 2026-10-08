@@ -197,10 +197,20 @@ newChatBtn.addEventListener('click', () => {
 function addMessage(text, role) {
   const div = document.createElement('div');
   div.className = 'message ' + role;
-  div.textContent = text;
+  if (role === 'bot') {
+    div.appendChild(renderMarkdown(text));   // formatted: bold, lists, code
+  } else {
+    div.textContent = text;                  // your own messages stay plain
+  }
   messages.appendChild(div);
   messages.scrollTop = messages.scrollHeight;
   return div;
+}
+
+// Replaces the text inside a bot bubble with formatted text
+function setBotText(el, text) {
+  el.textContent = '';
+  el.appendChild(renderMarkdown(text));
 }
 
 async function sendMessage(text) {
