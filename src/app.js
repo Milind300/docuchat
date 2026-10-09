@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import authRoutes from './routes/auth.js';
 import chatRoutes from './routes/chat.js';
 import conversationRoutes from './routes/conversations.js';
+import documentRoutes from './routes/documents.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -19,6 +20,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/conversations', conversationRoutes);
+app.use('/api/documents', documentRoutes);
 
 // Catches any error and returns clean JSON instead of crashing
 app.use((err, req, res, next) => {
