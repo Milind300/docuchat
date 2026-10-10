@@ -45,12 +45,23 @@
 
     <!-- CHAT SCREEN -->
     <div id="chat-screen" class="app hidden">
-      <aside id="sidebar">
-        <button id="new-chat-btn" type="button">+ New chat</button>
-        <ul id="conversation-list">
-          <li class="empty">Your chats will appear here</li>
+         <aside id="sidebar">
+      <button id="new-chat-btn" type="button">+ New chat</button>
+      <ul id="conversation-list">
+        <li class="empty">Your chats will appear here</li>
+      </ul>
+
+      <section id="documents-panel">
+        <h3>My documents</h3>
+        <input id="file-input" type="file" accept=".pdf,.txt,application/pdf,text/plain" hidden />
+        <button id="upload-btn" type="button">+ Upload PDF or TXT</button>
+        <p id="upload-status"></p>
+        <ul id="document-list">
+          <li class="empty">No documents yet</li>
         </ul>
-      </aside>
+        <p class="doc-note">Max 4 MB. Do not upload private files.</p>
+      </section>
+    </aside>
 
       <div class="chat-pane">
         <header>

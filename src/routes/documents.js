@@ -82,4 +82,13 @@ router.post('/', requireAuth, receiveFile, async (req, res) => {
   }
 });
 
+// GET /api/documents  -> my documents, newest first
+router.get('/', requireAuth, async (req, res) => {
+  const documents = await Document.find({ userId: req.user.id })
+    .sort({ createdAt: -1 })
+    .limit(50)
+    .select('filename status chunkCount error createdAt');
+
+  res.json({ documents });
+});
 export default router;
