@@ -21,9 +21,17 @@ const newChatBtn = document.getElementById('new-chat-btn');
 const conversationList = document.getElementById('conversation-list');
 const useDocsToggle = document.getElementById('use-docs');
 
+const uploadBtn = document.getElementById('upload-btn');
+const fileInput = document.getElementById('file-input');
+const uploadStatus = document.getElementById('upload-status');
+const documentList = document.getElementById('document-list');
+
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // 4 MB, the same limit as the server
+
 let mode = 'login';          // 'login' or 'register'
 let conversationId = null;   // which chat we are in (null = a new chat)
 let busy = false;            // true while waiting for an answer
+let uploading = false;       // true while a file is being processed
 
 // ---------- Token helpers ----------
 const getToken = () => localStorage.getItem('token');
@@ -58,8 +66,10 @@ function showChat(email) {
   authScreen.classList.add('hidden');
   chatScreen.classList.remove('hidden');
   userEmail.textContent = email;
+  setUploadStatus('');
   startNewChat();
   loadConversations();
+  loadDocuments();
 }
 
 function setMode(newMode) {
@@ -173,7 +183,7 @@ async function openConversation(id) {
 
     conversationId = data.conversationId;
     messages.innerHTML = '';
-     for (const m of data.messages) {
+    for (const m of data.messages) {
       const bubble = addMessage(m.content, m.role === 'user' ? 'user' : 'bot');
       if (m.role === 'assistant') addSources(bubble, m.sources);
     }
@@ -193,6 +203,103 @@ function startNewChat() {
 newChatBtn.addEventListener('click', () => {
   if (busy) return;
   startNewChat();
+});
+
+// ---------- Documents panel ----------
+function setUploadStatus(text, isError = false) {
+  uploadStatus.textContent = text;
+  uploadStatus.classList.toggle('error', isError);
+}
+
+function renderDocuments(list) {
+  documentList.innerHTML = '';
+
+  if (list.length === 0) {
+    const li = document.createElement('li');
+    li.className = 'empty';
+    li.textContent = 'No documents yet';
+    documentList.appendChild(li);
+    return;
+  }
+
+  for (const d of list) {
+    const li = document.createElement('li');
+    let label = d.filename;
+    if (d.status === 'READY') label += ' · ' + d.chunkCount + ' parts';
+    else if (d.status === 'FAILED') label += ' · failed';
+    else label += ' · processing';
+    li.textContent = label;                       // textContent keeps names safe
+    li.title = d.status === 'FAILED' && d.error ? d.error : d.filename;
+    documentList.appendChild(li);
+  }
+}
+
+async function loadDocuments() {
+  try {
+    const res = await api('/api/documents');
+    if (!res.ok) return;
+    const data = await res.json();
+    renderDocuments(data.documents);
+  } catch {
+    /* the list is optional, so ignore errors here */
+  }
+}
+
+async function uploadFile(file) {
+  const name = file.name.toLowerCase();
+  if (!name.endsWith('.pdf') && !name.endsWith('.txt')) {
+    setUploadStatus('Only PDF and TXT files are supported.', true);
+    return;
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    setUploadStatus('That file is larger than 4 MB.', true);
+    return;
+  }
+
+  uploading = true;
+  uploadBtn.disabled = true;
+  setUploadStatus('Processing "' + file.name + '"... this can take a little while.');
+
+  try {
+    const form = new FormData();
+    form.append('file', file);
+
+    const res = await fetch('/api/documents', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + getToken() },   // no Content-Type: the browser sets it
+      body: form,
+    });
+
+    if (res.status === 401) {
+      clearToken();
+      setMode('login');
+      showAuth();
+      return;
+    }
+
+    const data = await res.json();
+    if (!res.ok) {
+      setUploadStatus(data.message || 'Upload failed.', true);
+      return;
+    }
+    setUploadStatus('Ready: ' + data.document.filename + ' (' + data.document.chunkCount + ' parts)');
+  } catch {
+    setUploadStatus('Cannot reach the server.', true);
+  } finally {
+    uploading = false;
+    uploadBtn.disabled = false;
+    if (getToken()) loadDocuments();   // show the new document (or a failed one)
+  }
+}
+
+uploadBtn.addEventListener('click', () => {
+  if (!uploading) fileInput.click();
+});
+
+fileInput.addEventListener('change', () => {
+  const file = fileInput.files[0];
+  fileInput.value = '';                // so choosing the same file again still triggers this
+  if (file) uploadFile(file);
 });
 
 // ---------- Chat ----------
