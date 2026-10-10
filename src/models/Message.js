@@ -1,5 +1,17 @@
 import mongoose from 'mongoose';
 
+// One piece of a document that was used to answer a question
+const sourceSchema = new mongoose.Schema(
+  {
+    documentId: mongoose.Schema.Types.ObjectId,
+    filename: String,
+    chunkIndex: Number,
+    score: Number,
+    snippet: String,
+  },
+  { _id: false }
+);
+
 const messageSchema = new mongoose.Schema(
   {
     conversationId: {
@@ -23,6 +35,7 @@ const messageSchema = new mongoose.Schema(
     },
     tokensIn: { type: Number, default: 0 },
     tokensOut: { type: Number, default: 0 },
+    sources: { type: [sourceSchema], default: [] },
   },
   { timestamps: true }
 );
