@@ -19,6 +19,7 @@ const sendBtn = chatForm.querySelector('button');
 
 const newChatBtn = document.getElementById('new-chat-btn');
 const conversationList = document.getElementById('conversation-list');
+const useDocsToggle = document.getElementById('use-docs');
 
 let mode = 'login';          // 'login' or 'register'
 let conversationId = null;   // which chat we are in (null = a new chat)
@@ -172,8 +173,9 @@ async function openConversation(id) {
 
     conversationId = data.conversationId;
     messages.innerHTML = '';
-    for (const m of data.messages) {
-      addMessage(m.content, m.role === 'user' ? 'user' : 'bot');
+     for (const m of data.messages) {
+      const bubble = addMessage(m.content, m.role === 'user' ? 'user' : 'bot');
+      if (m.role === 'assistant') addSources(bubble, m.sources);
     }
     markActive();
   } catch {
@@ -213,6 +215,37 @@ function setBotText(el, text) {
   el.appendChild(renderMarkdown(text));
 }
 
+// Adds a collapsible "Sources" list under a bot answer
+function addSources(bubble, sources) {
+  if (!sources || sources.length === 0) return;
+
+  const details = document.createElement('details');
+  details.className = 'sources';
+
+  const summary = document.createElement('summary');
+  summary.textContent = 'Sources (' + sources.length + ')';
+  details.appendChild(summary);
+
+  for (const s of sources) {
+    const item = document.createElement('div');
+    item.className = 'source';
+
+    const name = document.createElement('strong');
+    name.textContent = s.filename;
+    item.appendChild(name);
+    item.appendChild(document.createTextNode(' · part ' + (s.chunkIndex + 1) + ' · match ' + s.score));
+
+    const snippet = document.createElement('div');
+    snippet.className = 'source-snippet';
+    snippet.textContent = s.snippet;
+    item.appendChild(snippet);
+
+    details.appendChild(item);
+  }
+
+  bubble.appendChild(details);
+}
+
 async function sendMessage(text) {
   addMessage(text, 'user');
   const bubble = addMessage('Thinking...', 'bot');
@@ -223,7 +256,7 @@ async function sendMessage(text) {
   try {
     const res = await api('/api/chat', {
       method: 'POST',
-      body: JSON.stringify({ message: text, conversationId }),
+      body: JSON.stringify({ message: text, conversationId, useDocuments: useDocsToggle.checked }),
     });
     const data = await res.json();
 
@@ -233,7 +266,8 @@ async function sendMessage(text) {
     }
 
     conversationId = data.conversationId;   // remember the chat for the next question
-    bubble.textContent = data.reply;
+    setBotText(bubble, data.reply);
+    addSources(bubble, data.sources);
     saved = true;
   } catch (err) {
     if (err.message !== 'unauthorized') bubble.textContent = 'Cannot reach the server';

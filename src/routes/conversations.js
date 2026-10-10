@@ -33,7 +33,7 @@ router.get('/:id/messages', requireAuth, async (req, res) => {
   const messages = await Message.find({ conversationId: convo._id })
     .sort({ createdAt: 1 })
     .limit(200)
-    .select('role content createdAt');
+    .select('role content createdAt sources');
 
   res.json({ conversationId: convo._id, title: convo.title, messages });
 });

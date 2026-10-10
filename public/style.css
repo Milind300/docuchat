@@ -175,3 +175,19 @@ button.small { padding: 6px 12px; font-size: 14px; background: rgba(255,255,255,
   padding: 0;
   color: inherit;
 }
+
+/* ---------- Document toggle and sources ---------- */
+#docs-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px 0;
+  font-size: 14px;
+  color: #444;
+  cursor: pointer;
+}
+
+.message.bot .sources { margin-top: 10px; font-size: 13px; }
+.message.bot .sources summary { cursor: pointer; color: #4f46e5; font-weight: bold; }
+.message.bot .source { margin-top: 8px; padding-top: 8px; border-top: 1px solid #d1d5db; }
+.message.bot .source-snippet { margin-top: 2px; color: #555; font-style: italic; white-space: pre-wrap; }
