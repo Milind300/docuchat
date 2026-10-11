@@ -8,6 +8,7 @@ import { generateReply, generateGroundedReply } from '../services/gemini.js';
 import { searchChunks } from '../services/search.js';
 import { checkLimits } from '../services/usage.js';
 import { RAG } from '../config/rag.js';
+import { BudgetError } from '../services/embeddingBudget.js';
 
 const router = Router();
 
@@ -100,7 +101,11 @@ router.post('/', requireAuth, async (req, res) => {
       reply = await generateReply(fullHistory);
     }
   } catch (err) {
-    console.error('AI error:', err.status, err.message);
+       console.error('AI error:', err.status, err.message);
+
+    if (err instanceof BudgetError) {
+      return res.status(429).json({ code: err.code, message: err.message });
+    }
     if (err.status === 429) {
       return res.status(429).json({ message: 'The AI is busy right now. Please try again in a minute.' });
     }

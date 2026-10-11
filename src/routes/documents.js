@@ -10,6 +10,7 @@ import { RAG } from '../config/rag.js';
 import { startOfPacificDay, nextPacificReset } from '../utils/pacificTime.js';
 import { extractTextFromFile } from '../services/extract.js';
 import { ingestText } from '../services/ingest.js';
+import { BudgetError } from '../services/embeddingBudget.js';
 
 const router = Router();
 
@@ -72,7 +73,11 @@ router.post('/', requireAuth, receiveFile, async (req, res) => {
       document: { id: doc._id, filename: doc.filename, status: doc.status, chunkCount: doc.chunkCount },
     });
   } catch (err) {
-    console.error('Ingest error:', err.status, err.message);
+        console.error('Ingest error:', err.status, err.message);
+
+    if (err instanceof BudgetError) {
+      return res.status(429).json({ code: err.code, message: err.message });
+    }
 
     const ourMessages = ['No readable text', 'This document is too large'];
     if (ourMessages.some((m) => err.message.startsWith(m))) {

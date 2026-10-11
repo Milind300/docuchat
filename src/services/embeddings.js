@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { RAG } from '../config/rag.js';
+import { reserveEmbeddings } from './embeddingBudget.js';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -20,7 +21,7 @@ async function embedBatch(texts, taskType) {
   return vectors;
 }
 
-// For document chunks
+// For document chunks. The caller must call reserveEmbeddings() first (ingest.js does).
 export async function embedDocuments(texts) {
   const all = [];
   for (let i = 0; i < texts.length; i += BATCH_SIZE) {
@@ -30,8 +31,9 @@ export async function embedDocuments(texts) {
   return all;
 }
 
-// For a user's question (used in a later step)
+// For a user's question. Takes 1 request from the shared budget.
 export async function embedQuery(text) {
+  await reserveEmbeddings(1, 'query');
   const [vector] = await embedBatch([text], 'RETRIEVAL_QUERY');
   return vector;
 }

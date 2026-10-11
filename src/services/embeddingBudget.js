@@ -35,13 +35,13 @@ export async function reserveEmbeddings(count, kind = 'document', now = new Date
   if (usage.minute + count > RAG.EMBED_PER_MINUTE) {
     throw new BudgetError(
       'EMBED_BUSY',
-      'The AI is busy processing other documents. Please try again in a minute.'
+      'Document processing is busy right now. Please try again in a minute.'
     );
   }
   if (usage.day + count > RAG.EMBED_PER_DAY) {
     throw new BudgetError(
       'EMBED_DAILY',
-      'The shared document-processing budget for today is used up. Please try again tomorrow.'
+      'The shared document budget for today is used up. Please try again tomorrow.'
     );
   }
 

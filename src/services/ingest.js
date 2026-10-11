@@ -2,13 +2,28 @@ import { Document } from '../models/Document.js';
 import { Chunk } from '../models/Chunk.js';
 import { chunkText } from './chunker.js';
 import { embedDocuments } from './embeddings.js';
+import { reserveEmbeddings } from './embeddingBudget.js';
 import { RAG } from '../config/rag.js';
 
 /**
  * Splits text, embeds the pieces and saves everything.
- * Returns the finished Document. On failure the Document is marked FAILED.
+ * Refusals that happen before any work (no text, too large, no budget) create no document.
  */
 export async function ingestText({ userId, filename, mimeType, text }) {
+  const pieces = chunkText(text, { size: RAG.CHUNK_SIZE, overlap: RAG.CHUNK_OVERLAP });
+
+  if (pieces.length === 0) {
+    throw new Error('No readable text found in this file.');
+  }
+  if (pieces.length > RAG.MAX_CHUNKS_PER_DOCUMENT) {
+    throw new Error(
+      `This document is too large (${pieces.length} pieces). The limit is ${RAG.MAX_CHUNKS_PER_DOCUMENT}.`
+    );
+  }
+
+  // Take the whole document's embedding requests from the shared budget (throws BudgetError)
+  await reserveEmbeddings(pieces.length, 'document');
+
   const doc = await Document.create({
     userId,
     filename,
@@ -18,17 +33,6 @@ export async function ingestText({ userId, filename, mimeType, text }) {
   });
 
   try {
-    const pieces = chunkText(text, { size: RAG.CHUNK_SIZE, overlap: RAG.CHUNK_OVERLAP });
-
-    if (pieces.length === 0) {
-      throw new Error('No readable text found in this file.');
-    }
-    if (pieces.length > RAG.MAX_CHUNKS_PER_DOCUMENT) {
-      throw new Error(
-        `This document is too large (${pieces.length} pieces). The limit is ${RAG.MAX_CHUNKS_PER_DOCUMENT}.`
-      );
-    }
-
     const vectors = await embedDocuments(pieces);
 
     await Chunk.insertMany(
