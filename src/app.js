@@ -1,4 +1,5 @@
 import express from 'express';
+import helmet from 'helmet';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import authRoutes from './routes/auth.js';
@@ -10,7 +11,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 
-app.use(express.json());
+// Security headers. Our page loads only its own files, so the strict defaults fit.
+// 'upgrade-insecure-requests' is switched off so plain http://localhost keeps working.
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: { 'upgrade-insecure-requests': null },
+    },
+  })
+);
+
+app.use(express.json({ limit: '100kb' })); // chat messages are capped at 2000 characters anyway
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/api/health', (req, res) => {
