@@ -11,12 +11,13 @@ const documentSchema = new mongoose.Schema(
     mimeType: { type: String, default: 'text/plain' },
     status: {
       type: String,
-      enum: ['PROCESSING', 'READY', 'FAILED'],
+      enum: ['PROCESSING', 'READY', 'FAILED', 'DELETED'],
       default: 'PROCESSING',
     },
     chunkCount: { type: Number, default: 0 },
     charCount: { type: Number, default: 0 },
     error: { type: String, default: '' },
+    deletedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

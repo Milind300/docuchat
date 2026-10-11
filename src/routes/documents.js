@@ -1,8 +1,11 @@
 import path from 'node:path';
 import { Router } from 'express';
+import mongoose from 'mongoose';
 import multer from 'multer';
 import { requireAuth } from '../middleware/auth.js';
 import { Document } from '../models/Document.js';
+import { Chunk } from '../models/Chunk.js';
+import { Message } from '../models/Message.js';
 import { RAG } from '../config/rag.js';
 import { startOfPacificDay, nextPacificReset } from '../utils/pacificTime.js';
 import { extractTextFromFile } from '../services/extract.js';
@@ -36,7 +39,7 @@ router.post('/', requireAuth, receiveFile, async (req, res) => {
     return res.status(400).json({ message: 'No file received.' });
   }
 
-  // 1. Daily upload limit
+  // 1. Daily upload limit (deleted documents still count: the embedding quota was spent)
   const today = await Document.countDocuments({
     userId,
     createdAt: { $gte: startOfPacificDay() },
@@ -82,13 +85,49 @@ router.post('/', requireAuth, receiveFile, async (req, res) => {
   }
 });
 
-// GET /api/documents  -> my documents, newest first
+// GET /api/documents  -> my documents, newest first (deleted ones are hidden)
 router.get('/', requireAuth, async (req, res) => {
-  const documents = await Document.find({ userId: req.user.id })
+  const documents = await Document.find({ userId: req.user.id, status: { $ne: 'DELETED' } })
     .sort({ createdAt: -1 })
     .limit(50)
     .select('filename status chunkCount error createdAt');
 
   res.json({ documents });
 });
+
+// DELETE /api/documents/:id
+router.delete('/:id', requireAuth, async (req, res) => {
+  const userId = req.user.id;
+  const { id } = req.params;
+
+  if (!mongoose.isValidObjectId(id)) {
+    return res.status(400).json({ message: 'Invalid document id' });
+  }
+
+  // It must be mine and not already deleted
+  const doc = await Document.findOne({ _id: id, userId, status: { $ne: 'DELETED' } });
+  if (!doc) {
+    return res.status(404).json({ message: 'Document not found' });
+  }
+  if (doc.status === 'PROCESSING') {
+    return res.status(409).json({ message: 'This document is still being processed. Try again in a moment.' });
+  }
+
+  // Chunks first: if a later step fails, the document is still listed and the delete can be retried
+  await Chunk.deleteMany({ documentId: doc._id });
+
+  // Remove this document from the saved sources of old answers
+  await Message.updateMany(
+    { userId, 'sources.documentId': doc._id },
+    { $pull: { sources: { documentId: doc._id } } }
+  );
+
+  doc.status = 'DELETED';
+  doc.chunkCount = 0;
+  doc.deletedAt = new Date();
+  await doc.save();
+
+  res.json({ ok: true });
+});
+
 export default router;

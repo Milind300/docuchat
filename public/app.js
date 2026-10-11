@@ -224,14 +224,48 @@ function renderDocuments(list) {
 
   for (const d of list) {
     const li = document.createElement('li');
+
     let label = d.filename;
     if (d.status === 'READY') label += ' · ' + d.chunkCount + ' parts';
     else if (d.status === 'FAILED') label += ' · failed';
     else label += ' · processing';
-    li.textContent = label;                       // textContent keeps names safe
-    li.title = d.status === 'FAILED' && d.error ? d.error : d.filename;
+
+    const name = document.createElement('span');
+    name.className = 'doc-name';
+    name.textContent = label;                       // textContent keeps names safe
+    name.title = d.status === 'FAILED' && d.error ? d.error : d.filename;
+    li.appendChild(name);
+
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'doc-delete';
+    del.textContent = '×';
+    del.title = 'Delete this document';
+    del.disabled = d.status === 'PROCESSING';       // the server refuses it anyway
+    del.addEventListener('click', () => deleteDocument(d));
+    li.appendChild(del);
+
     documentList.appendChild(li);
   }
+}
+
+async function deleteDocument(doc) {
+  if (uploading) return;
+  const ok = confirm('Delete "' + doc.filename + '"?\n\nIt is removed from search. This cannot be undone.');
+  if (!ok) return;
+
+  try {
+    const res = await api('/api/documents/' + doc._id, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) {
+      setUploadStatus(data.message || 'Could not delete the document.', true);
+    } else {
+      setUploadStatus('Deleted: ' + doc.filename);
+    }
+  } catch (err) {
+    if (err.message !== 'unauthorized') setUploadStatus('Cannot reach the server.', true);
+  }
+  loadDocuments();
 }
 
 async function loadDocuments() {
