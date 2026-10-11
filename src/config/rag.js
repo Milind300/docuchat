@@ -16,4 +16,6 @@ export const RAG = {
   MAX_DOCUMENTS_PER_DAY: 3,
   TOP_K: 4,          // how many chunks are sent to the AI
   MIN_SCORE: 0.765,  // below this, the question is treated as unrelated to the documents
+  EMBED_PER_MINUTE: 80,  // our own cap for the whole app (Google allows 100)
+  EMBED_PER_DAY: 900,    // our own cap for the whole app (Google allows 1,000)
 };
