@@ -4,7 +4,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { Conversation } from '../models/Conversation.js';
 import { Message } from '../models/Message.js';
 import { Document } from '../models/Document.js';
-import { generateReply, generateGroundedReply } from '../services/gemini.js';
+import { generateReply, generateCitedReply } from '../services/gemini.js';
 import { searchChunks } from '../services/search.js';
 import { checkLimits } from '../services/usage.js';
 import { RAG } from '../config/rag.js';
@@ -14,6 +14,7 @@ const router = Router();
 
 const MAX_MESSAGE_LENGTH = 2000;
 const HISTORY_LIMIT = 10; // how many earlier messages the AI "remembers"
+const SNIPPET_LENGTH = 700; // enough to show a whole chunk
 const NOT_FOUND_REPLY = 'I could not find anything relevant to that in your uploaded documents.';
 
 // POST /api/chat   body: { message, conversationId?, useDocuments? }
@@ -81,27 +82,31 @@ router.post('/', requireAuth, async (req, res) => {
         // Nothing close enough: answer without spending a chat request
         reply = { text: NOT_FOUND_REPLY, tokensIn: 0, tokensOut: 0 };
       } else {
+        reply = await generateCitedReply(fullHistory, relevant);
+
+        // Keep only the excerpts the answer used. If we could not tell, keep them all.
+        const shown =
+          reply.used === null ? relevant : relevant.filter((_, i) => reply.used.includes(i + 1));
+
         const docs = await Document.find({
-          _id: { $in: relevant.map((c) => c.documentId) },
+          _id: { $in: shown.map((c) => c.documentId) },
           userId,
         }).select('filename');
         const names = new Map(docs.map((d) => [String(d._id), d.filename]));
 
-        sources = relevant.map((c) => ({
+        sources = shown.map((c) => ({
           documentId: c.documentId,
           filename: names.get(String(c.documentId)) ?? 'document',
           chunkIndex: c.index,
           score: Number(c.score.toFixed(3)),
-          snippet: c.text.slice(0, 200),
+          snippet: c.text.slice(0, SNIPPET_LENGTH),
         }));
-
-        reply = await generateGroundedReply(fullHistory, relevant);
       }
     } else {
       reply = await generateReply(fullHistory);
     }
   } catch (err) {
-       console.error('AI error:', err.status, err.message);
+    console.error('AI error:', err.status, err.message);
 
     if (err instanceof BudgetError) {
       return res.status(429).json({ code: err.code, message: err.message });
