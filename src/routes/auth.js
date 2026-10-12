@@ -3,15 +3,29 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
 import { requireAuth } from '../middleware/auth.js';
+import { rateLimit } from '../middleware/rateLimit.js';
+import { LIMITS } from '../config/limits.js';
 
 const router = Router();
+
+const registerLimit = rateLimit({
+  name: 'register',
+  max: LIMITS.REGISTER_ATTEMPTS,
+  windowSeconds: LIMITS.REGISTER_WINDOW_SECONDS,
+});
+
+const loginLimit = rateLimit({
+  name: 'login',
+  max: LIMITS.LOGIN_ATTEMPTS,
+  windowSeconds: LIMITS.LOGIN_WINDOW_SECONDS,
+});
 
 function makeToken(user) {
   return jwt.sign({ sub: String(user._id) }, process.env.JWT_SECRET, { expiresIn: '7d' });
 }
 
 // POST /api/auth/register
-router.post('/register', async (req, res) => {
+router.post('/register', registerLimit, async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
@@ -33,7 +47,7 @@ router.post('/register', async (req, res) => {
 });
 
 // POST /api/auth/login
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimit, async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
