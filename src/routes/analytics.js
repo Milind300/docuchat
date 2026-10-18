@@ -2,6 +2,7 @@ import { Router } from 'express';
 import mongoose from 'mongoose';
 import { requireAuth } from '../middleware/auth.js';
 import { Message } from '../models/Message.js';
+import { Document } from '../models/Document.js';
 import { LIMITS } from '../config/limits.js';
 import { startOfPacificDay } from '../utils/pacificTime.js';
 
@@ -90,6 +91,68 @@ router.get('/summary', requireAuth, async (req, res) => {
     days: series,
     totals,
     today: { questions: today.questions, limit: LIMITS.USER_PER_DAY },
+  });
+});
+
+// GET /api/analytics/documents  -> how often each of my documents is cited
+router.get('/documents', requireAuth, async (req, res) => {
+  const userId = new mongoose.Types.ObjectId(req.user.id);
+
+  // Step 1: one row per (document, answer), so an answer citing 3 passages of one document counts once
+  // Step 2: add those up per document
+  const cited = await Message.aggregate([
+    { $match: { userId, role: 'assistant', 'sources.0': { $exists: true } } },
+    { $unwind: '$sources' },
+    {
+      $group: {
+        _id: { doc: '$sources.documentId', msg: '$_id' },
+        passages: { $sum: 1 },
+        at: { $first: '$createdAt' },
+      },
+    },
+    {
+      $group: {
+        _id: '$_id.doc',
+        answers: { $sum: 1 },
+        passages: { $sum: '$passages' },
+        lastCitedAt: { $max: '$at' },
+      },
+    },
+  ]);
+  const citedBy = new Map(cited.map((c) => [String(c._id), c]));
+
+  const docs = await Document.find({ userId, status: { $ne: 'DELETED' } })
+    .select('filename status chunkCount createdAt');
+
+  const documents = docs
+    .map((d) => {
+      const c = citedBy.get(String(d._id));
+      return {
+        id: d._id,
+        filename: d.filename,
+        status: d.status,
+        chunkCount: d.chunkCount,
+        answers: c?.answers ?? 0,
+        passages: c?.passages ?? 0,
+        lastCitedAt: c?.lastCitedAt ?? null,
+        uploadedAt: d.createdAt,
+      };
+    })
+    .sort((a, b) => b.answers - a.answers || new Date(b.uploadedAt) - new Date(a.uploadedAt));
+
+  const answersWithSources = await Message.countDocuments({
+    userId,
+    role: 'assistant',
+    'sources.0': { $exists: true },
+  });
+
+  res.json({
+    documents,
+    totals: {
+      documents: documents.length,
+      chunks: documents.reduce((sum, d) => sum + d.chunkCount, 0),
+      answersWithSources,
+    },
   });
 });
 
