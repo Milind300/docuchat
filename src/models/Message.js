@@ -41,6 +41,6 @@ const messageSchema = new mongoose.Schema(
 );
 
 // Fast lookup: "all messages of this conversation, oldest first"
-messageSchema.index({ conversationId: 1, createdAt: 1 });
+messageSchema.index({ userId: 1, createdAt: -1 });
 
 export const Message = mongoose.model('Message', messageSchema);

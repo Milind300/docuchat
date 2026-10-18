@@ -7,6 +7,7 @@ import chatRoutes from './routes/chat.js';
 import chatStreamRoutes from './routes/chatStream.js';
 import conversationRoutes from './routes/conversations.js';
 import documentRoutes from './routes/documents.js';
+import analyticsRoutes from './routes/analytics.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -43,6 +44,7 @@ app.use('/api/chat/stream', chatStreamRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/conversations', conversationRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Catches any error and returns clean JSON instead of crashing
 app.use((err, req, res, next) => {
