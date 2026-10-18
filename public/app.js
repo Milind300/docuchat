@@ -422,10 +422,73 @@ function addSources(bubble, sources) {
   bubble.appendChild(details);
 }
 
-// Reads a streamed answer (Server-Sent Events) and shows it as it arrives
+// ---------- Typing effect ----------
+const TYPE_TICK_MS = 25;    // how often new characters are revealed
+const TYPE_MIN_CHARS = 3;   // never reveal fewer characters than this per tick
+const TYPE_CATCHUP = 15;    // a bigger backlog is revealed faster (backlog / 15 per tick)
+
+// While text is half-typed, hide a dangling ** so the page never flashes raw asterisks
+function stabilize(text) {
+  const open = (s) => (s.match(/\*\*/g) || []).length % 2 === 1;
+  if (!open(text)) return text;
+  let t = text.replace(/\*+$/, '');   // drop a half-typed marker at the very end
+  if (open(t)) t += '**';             // close a bold section that is still open
+  return t;
+}
+
+function createTyper(bubble) {
+  const instant = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let target = '';       // everything received so far
+  let shown = 0;         // how many characters are visible
+  let timer = null;
+  let onDrained = null;
+
+  function paint() {
+    setBotText(bubble, stabilize(target.slice(0, shown)));
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function step() {
+    const backlog = target.length - shown;
+    if (backlog <= 0) {
+      clearInterval(timer);
+      timer = null;
+      if (onDrained) onDrained();
+      return;
+    }
+    shown += Math.min(backlog, Math.max(TYPE_MIN_CHARS, Math.ceil(backlog / TYPE_CATCHUP)));
+    paint();
+  }
+
+  return {
+    push(text) {
+      target += text;
+      if (instant) {
+        shown = target.length;
+        paint();
+      } else if (!timer) {
+        timer = setInterval(step, TYPE_TICK_MS);
+      }
+    },
+    // Resolves when everything received has been shown
+    finish() {
+      return new Promise((resolve) => {
+        if (instant || (!timer && shown >= target.length)) return resolve();
+        onDrained = resolve;
+      });
+    },
+    stop() {
+      clearInterval(timer);
+      timer = null;
+    },
+  };
+}
+
+// Reads a streamed answer (Server-Sent Events) and types it out as it arrives
 async function readStream(res, bubble) {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
+  const typer = createTyper(bubble);
   let buffer = '';
   let fullText = '';
   let finished = false;
@@ -435,8 +498,7 @@ async function readStream(res, bubble) {
   function handle(event) {
     if (event.type === 'text') {
       fullText += event.text;
-      setBotText(bubble, fullText);              // formatted again as the text grows
-      messages.scrollTop = messages.scrollHeight;
+      typer.push(event.text);
     } else if (event.type === 'done') {
       finished = true;
       newConversationId = event.conversationId;
@@ -445,23 +507,30 @@ async function readStream(res, bubble) {
     }
   }
 
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
 
-    // Each event ends with a blank line
-    let end;
-    while ((end = buffer.indexOf('\n\n')) !== -1) {
-      const block = buffer.slice(0, end);
-      buffer = buffer.slice(end + 2);
-      if (!block.startsWith('data: ')) continue;
-      try {
-        handle(JSON.parse(block.slice(6)));
-      } catch {
-        /* ignore one broken event */
+      // Each event ends with a blank line
+      let end;
+      while ((end = buffer.indexOf('\n\n')) !== -1) {
+        const block = buffer.slice(0, end);
+        buffer = buffer.slice(end + 2);
+        if (!block.startsWith('data: ')) continue;
+        try {
+          handle(JSON.parse(block.slice(6)));
+        } catch {
+          /* ignore one broken event */
+        }
       }
     }
+
+    await typer.finish();                         // let the typing catch up
+    if (fullText) setBotText(bubble, fullText);   // final, exact text
+  } finally {
+    typer.stop();                                 // never leave a timer running
   }
 
   return { fullText, finished, errorMessage, conversationId: newConversationId };
