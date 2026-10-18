@@ -387,6 +387,51 @@ function addSources(bubble, sources) {
   bubble.appendChild(details);
 }
 
+// Reads a streamed answer (Server-Sent Events) and shows it as it arrives
+async function readStream(res, bubble) {
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let fullText = '';
+  let finished = false;
+  let errorMessage = '';
+  let newConversationId = null;
+
+  function handle(event) {
+    if (event.type === 'text') {
+      fullText += event.text;
+      setBotText(bubble, fullText);              // formatted again as the text grows
+      messages.scrollTop = messages.scrollHeight;
+    } else if (event.type === 'done') {
+      finished = true;
+      newConversationId = event.conversationId;
+    } else if (event.type === 'error') {
+      errorMessage = event.message;
+    }
+  }
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    // Each event ends with a blank line
+    let end;
+    while ((end = buffer.indexOf('\n\n')) !== -1) {
+      const block = buffer.slice(0, end);
+      buffer = buffer.slice(end + 2);
+      if (!block.startsWith('data: ')) continue;
+      try {
+        handle(JSON.parse(block.slice(6)));
+      } catch {
+        /* ignore one broken event */
+      }
+    }
+  }
+
+  return { fullText, finished, errorMessage, conversationId: newConversationId };
+}
+
 async function sendMessage(text) {
   addMessage(text, 'user');
   const bubble = addMessage('Thinking...', 'bot');
@@ -395,21 +440,40 @@ async function sendMessage(text) {
   let saved = false;
 
   try {
-    const res = await api('/api/chat', {
-      method: 'POST',
-      body: JSON.stringify({ message: text, conversationId, useDocuments: useDocsToggle.checked }),
-    });
-    const data = await res.json();
+    const useDocs = useDocsToggle.checked;
 
+    // Plain questions stream. Document questions use the normal route (it returns sources).
+    const res = await api(useDocs ? '/api/chat' : '/api/chat/stream', {
+      method: 'POST',
+      body: JSON.stringify({ message: text, conversationId, useDocuments: useDocs }),
+    });
+
+    // Checks that fail before streaming starts come back as normal JSON errors
     if (!res.ok) {
+      const data = await res.json();
       bubble.textContent = data.message || 'Something went wrong';
       return;
     }
 
-    conversationId = data.conversationId;   // remember the chat for the next question
-    setBotText(bubble, data.reply);
-    addSources(bubble, data.sources);
-    saved = true;
+    if (useDocs) {
+      const data = await res.json();
+      conversationId = data.conversationId;     // remember the chat for the next question
+      setBotText(bubble, data.reply);
+      addSources(bubble, data.sources);
+      saved = true;
+    } else {
+      const result = await readStream(res, bubble);
+      if (result.conversationId) conversationId = result.conversationId;
+      saved = result.fullText !== '';
+
+      if (result.errorMessage) {
+        if (result.fullText) setBotText(bubble, result.fullText + '\n\n(' + result.errorMessage + ')');
+        else bubble.textContent = result.errorMessage;
+      } else if (!result.finished) {
+        if (result.fullText) setBotText(bubble, result.fullText + '\n\n(The answer was interrupted.)');
+        else bubble.textContent = 'The connection was interrupted. Please try again.';
+      }
+    }
   } catch (err) {
     if (err.message !== 'unauthorized') bubble.textContent = 'Cannot reach the server';
   } finally {

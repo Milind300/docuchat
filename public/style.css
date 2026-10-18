@@ -266,3 +266,7 @@ button.small { padding: 6px 12px; font-size: 14px; background: rgba(255,255,255,
 }
 
 #document-list .doc-delete:hover { background: #fecaca; }
+
+/* Rows keep their height; the list scrolls instead of squashing them */
+#conversation-list li { flex-shrink: 0; }
+#document-list li { flex-shrink: 0; }
