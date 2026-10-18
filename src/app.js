@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import authRoutes from './routes/auth.js';
 import chatRoutes from './routes/chat.js';
+import chatStreamRoutes from './routes/chatStream.js';
 import conversationRoutes from './routes/conversations.js';
 import documentRoutes from './routes/documents.js';
 
@@ -38,6 +39,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/chat/stream', chatStreamRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/conversations', conversationRoutes);
 app.use('/api/documents', documentRoutes);
