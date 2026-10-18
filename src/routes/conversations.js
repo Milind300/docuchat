@@ -38,4 +38,34 @@ router.get('/:id/messages', requireAuth, async (req, res) => {
   res.json({ conversationId: convo._id, title: convo.title, messages });
 });
 
+// DELETE /api/conversations/:id
+router.delete('/:id', requireAuth, async (req, res) => {
+  const userId = req.user.id;
+  const { id } = req.params;
+
+  if (!mongoose.isValidObjectId(id)) {
+    return res.status(400).json({ message: 'Invalid conversation id' });
+  }
+
+  const convo = await Conversation.findOne({ _id: id, userId });
+  if (!convo) {
+    return res.status(404).json({ message: 'Conversation not found' });
+  }
+
+  // 1. Remove the answers (and their sources)
+  await Message.deleteMany({ conversationId: convo._id, userId, role: 'assistant' });
+
+  // 2. Keep the question rows so usage limits stay honest, but erase the text
+  await Message.updateMany(
+    { conversationId: convo._id, userId, role: 'user' },
+    { $set: { content: '[deleted]' } }
+  );
+
+  // 3. Last: remove the conversation itself. If anything above failed, the chat is still
+  //    listed and the delete can simply be tried again.
+  await Conversation.deleteOne({ _id: convo._id });
+
+  res.json({ ok: true });
+});
+
 export default router;
