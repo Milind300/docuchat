@@ -270,3 +270,34 @@ button.small { padding: 6px 12px; font-size: 14px; background: rgba(255,255,255,
 /* Rows keep their height; the list scrolls instead of squashing them */
 #conversation-list li { flex-shrink: 0; }
 #document-list li { flex-shrink: 0; }
+
+/* ---------- Chat delete button ---------- */
+#conversation-list li { display: flex; align-items: center; gap: 6px; }
+#conversation-list li.empty { display: block; }
+
+.chat-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#conversation-list .chat-delete {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  line-height: 1;
+  font-size: 16px;
+  border-radius: 4px;
+  background: #fee2e2;
+  color: #b91c1c;
+  opacity: 0;                      /* shown on hover, and always on the open chat */
+}
+
+#conversation-list li:hover .chat-delete,
+#conversation-list li.active .chat-delete,
+#conversation-list .chat-delete:focus { opacity: 1; }
+
+#conversation-list .chat-delete:hover { background: #fecaca; }

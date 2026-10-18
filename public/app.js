@@ -151,12 +151,47 @@ function renderConversations(list) {
   for (const c of list) {
     const li = document.createElement('li');
     li.dataset.id = c._id;
-    li.textContent = c.title;       // textContent keeps titles safe
     li.title = c.title;
     li.addEventListener('click', () => openConversation(c._id));
+
+    const title = document.createElement('span');
+    title.className = 'chat-title';
+    title.textContent = c.title;                    // textContent keeps titles safe
+    li.appendChild(title);
+
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'chat-delete';
+    del.textContent = '×';
+    del.title = 'Delete this chat';
+    del.addEventListener('click', (e) => {
+      e.stopPropagation();                          // do not also open the chat
+      deleteConversation(c);
+    });
+    li.appendChild(del);
+
     conversationList.appendChild(li);
   }
   markActive();
+}
+
+async function deleteConversation(c) {
+  if (busy) return;
+  const ok = confirm('Delete this chat?\n\n"' + c.title + '"\n\nThis cannot be undone.');
+  if (!ok) return;
+
+  try {
+    const res = await api('/api/conversations/' + c._id, { method: 'DELETE' });
+    if (res.ok) {
+      if (c._id === conversationId) startNewChat();   // the open chat was deleted
+    } else {
+      const data = await res.json();
+      alert(data.message || 'Could not delete that chat.');
+    }
+  } catch (err) {
+    if (err.message !== 'unauthorized') alert('Cannot reach the server.');
+  }
+  loadConversations();
 }
 
 async function loadConversations() {
