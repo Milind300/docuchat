@@ -10,6 +10,7 @@ const router = Router();
 
 const MAX_MESSAGE_LENGTH = 2000;
 const HISTORY_LIMIT = 10;
+const MIN_PARTIAL_LENGTH = 20; // a cancelled answer shorter than this is not saved
 
 // Sends one Server-Sent Event: a line starting with "data:" followed by a blank line
 function send(res, payload) {
@@ -119,13 +120,17 @@ router.post('/', requireAuth, async (req, res) => {
       return res.end();
     }
 
+        // A cancel that left only a few characters is not worth keeping. The question stays.
+    if (aborted && fullText.length < MIN_PARTIAL_LENGTH) return;
+
     // Something arrived: save it (the whole answer, or the part that arrived before a cancel or a failure)
+    const interrupted = aborted || Boolean(failure);
     await Message.updateOne({ _id: userMsg._id }, { tokensIn: usage.tokensIn });
     await Message.create({
       conversationId: convo._id,
       userId,
       role: 'assistant',
-      content: fullText,
+      content: interrupted ? fullText + '\n\n(answer interrupted)' : fullText,
       tokensOut: usage.tokensOut,
     });
     convo.updatedAt = new Date();
