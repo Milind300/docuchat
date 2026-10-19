@@ -1,41 +1,53 @@
-const TZ = "America/Los_Angeles";
+const TZ = 'America/Los_Angeles';
+const HOUR = 60 * 60 * 1000;
+
+const formatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: TZ,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+});
+
+// The Pacific wall-clock reading (year, month, day, hour...) for a moment in time
+function wallParts(date) {
+  const parts = formatter.formatToParts(date);
+  const get = (type) => Number(parts.find((p) => p.type === type).value);
+  return {
+    year: get('year'),
+    month: get('month'),
+    day: get('day'),
+    hour: get('hour'),
+    minute: get('minute'),
+    second: get('second'),
+  };
+}
+
+// How far Pacific time is from UTC at this moment, in milliseconds (a negative number)
+function offsetMs(date) {
+  const p = wallParts(date);
+  const wallAsUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+  const wholeSeconds = Math.floor(date.getTime() / 1000) * 1000; // the wall clock has no milliseconds
+  return wallAsUtc - wholeSeconds;
+}
 
 // Returns the exact moment (as a Date) when the current Pacific-time day began.
 export function startOfPacificDay(now = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: TZ,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(now);
+  const p = wallParts(now);
+  const midnightAsUtc = Date.UTC(p.year, p.month - 1, p.day);
 
-  const get = (type) => Number(parts.find((p) => p.type === type).value);
-
-  // The Pacific wall-clock time, pretending it is UTC
-  const wallAsUtc = Date.UTC(
-    get("year"),
-    get("month") - 1,
-    get("day"),
-    get("hour"),
-    get("minute"),
-    get("second"),
-  );
-  // How far Pacific time is from real UTC right now (negative number)
-  // How far Pacific time is from real UTC right now (negative number)
-  // We drop the milliseconds, because the wall-clock time above has none
-  const nowWholeSeconds = Math.floor(now.getTime() / 1000) * 1000;
-  const offset = wallAsUtc - nowWholeSeconds;
-  // Pacific midnight, pretending it is UTC, then shifted back to real time
-  const midnightAsUtc = Date.UTC(get("year"), get("month") - 1, get("day"));
-
-  return new Date(midnightAsUtc - offset);
+  // First guess, using today's offset from UTC
+  const guess = new Date(midnightAsUtc - offsetMs(now));
+  // On the days the clocks change, the offset at midnight differs from the one now,
+  // so measure it again at the guess and correct.
+  return new Date(midnightAsUtc - offsetMs(guess));
 }
 
-// About when the next Pacific day starts (can be off by an hour on a daylight-saving change day)
+// The moment the next Pacific-time day starts. 36 hours after a day starts is always
+// inside the next day, even when a day is 23 or 25 hours long.
 export function nextPacificReset(now = new Date()) {
-  return new Date(startOfPacificDay(now).getTime() + 24 * 60 * 60 * 1000);
+  return startOfPacificDay(new Date(startOfPacificDay(now).getTime() + 36 * HOUR));
 }

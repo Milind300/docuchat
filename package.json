@@ -6,7 +6,9 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "node --watch src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "repository": {
     "type": "git",
@@ -29,5 +31,8 @@
     "mongoose": "^9.11.0",
     "multer": "^2.4.0",
     "unpdf": "^1.8.1"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.5"
   }
 }
