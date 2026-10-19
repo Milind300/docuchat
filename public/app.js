@@ -598,6 +598,148 @@ chatForm.addEventListener('submit', (e) => {
 });
 
 // ---------- On page load: am I already logged in? ----------
+// ---------- My usage (analytics) ----------
+const usageBtn = document.getElementById('usage-btn');
+const usageDialog = document.getElementById('usage-dialog');
+const usageClose = document.getElementById('usage-close');
+const usageBody = document.getElementById('usage-body');
+
+const BAR_MAX_PX = 80;
+const fmt = (n) => Number(n).toLocaleString();
+const plural = (n, word) => n + ' ' + word + (n === 1 ? '' : 's');
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;   // textContent keeps everything safe
+  return node;
+}
+
+// "2026-10-18" becomes a date at UTC midnight, so no time zone can shift the day
+function parseDay(s) {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+const dayText = (s) => parseDay(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+function renderUsage(summary, docInfo) {
+  usageBody.textContent = '';
+  const { days, totals, today } = summary;
+
+  // ----- Today -----
+  const c1 = el('section', 'usage-card');
+  c1.appendChild(el('h3', null, 'Today'));
+  c1.appendChild(el('p', 'usage-big', today.questions + ' of ' + today.limit + ' questions used'));
+  const meter = el('div', 'meter');
+  meter.setAttribute('role', 'progressbar');
+  meter.setAttribute('aria-valuemin', '0');
+  meter.setAttribute('aria-valuemax', String(today.limit));
+  meter.setAttribute('aria-valuenow', String(today.questions));
+  const fill = el('span');
+  fill.style.width = Math.min(100, Math.round((today.questions / today.limit) * 100)) + '%';
+  meter.appendChild(fill);
+  if (today.questions >= today.limit) meter.classList.add('full');
+  c1.appendChild(meter);
+  c1.appendChild(el('p', 'usage-note', 'Resets at midnight Pacific Time. Deleting a chat does not give questions back.'));
+  usageBody.appendChild(c1);
+
+  // ----- Last days -----
+  const c2 = el('section', 'usage-card');
+  c2.appendChild(el('h3', null, 'Last ' + days.length + ' days'));
+  c2.appendChild(el('p', 'usage-note', dayText(days[0].date) + ' to ' + dayText(days[days.length - 1].date) + ' (Pacific time)'));
+
+  const tiles = el('div', 'usage-tiles');
+  [[totals.questions, 'questions'], [totals.tokensIn, 'tokens in'], [totals.tokensOut, 'tokens out']].forEach(([value, label]) => {
+    const tile = el('div', 'usage-tile');
+    tile.appendChild(el('strong', null, fmt(value)));
+    tile.appendChild(el('span', null, label));
+    tiles.appendChild(tile);
+  });
+  c2.appendChild(tiles);
+
+  const max = Math.max(1, ...days.map((d) => d.questions));
+  const bars = el('div', 'bars');
+  bars.setAttribute('role', 'img');
+  bars.setAttribute('aria-label', 'Questions per day: ' + plural(totals.questions, 'question') + ' in ' + days.length + ' days');
+  days.forEach((d, i) => {
+    const col = el('div', 'bar-col' + (i === days.length - 1 ? ' today' : ''));
+    col.title = dayText(d.date) + ': ' + plural(d.questions, 'question') + ', ' + fmt(d.tokensIn) + ' tokens in, ' + fmt(d.tokensOut) + ' out';
+    col.appendChild(el('span', 'bar-value', d.questions ? String(d.questions) : ''));
+    const bar = el('span', 'bar-fill' + (d.questions === 0 ? ' zero' : ''));
+    bar.style.height = (d.questions === 0 ? 2 : Math.max(4, Math.round((d.questions / max) * BAR_MAX_PX))) + 'px';
+    col.appendChild(bar);
+    col.appendChild(el('span', 'bar-label', String(parseDay(d.date).getUTCDate())));
+    bars.appendChild(col);
+  });
+  c2.appendChild(bars);
+  c2.appendChild(el('p', 'usage-note', 'Hover a bar for that day\'s tokens. Output tokens are undercounted if you delete chats.'));
+  usageBody.appendChild(c2);
+
+  // ----- Documents -----
+  const c3 = el('section', 'usage-card');
+  c3.appendChild(el('h3', null, 'Your documents'));
+  const docs = docInfo.documents;
+
+  if (docs.length === 0) {
+    c3.appendChild(el('p', 'usage-note', 'No documents yet.'));
+  } else {
+    const maxAnswers = Math.max(1, ...docs.map((d) => d.answers));
+    docs.forEach((d) => {
+      const row = el('div', 'doc-row');
+
+      const top = el('div', 'doc-row-top');
+      top.appendChild(el('span', 'doc-row-name', d.filename));
+      top.appendChild(el('span', 'doc-row-stat',
+        d.answers ? plural(d.answers, 'answer') + ' · ' + plural(d.passages, 'passage') : 'Never cited'));
+      row.appendChild(top);
+
+      const m = el('div', 'meter small');
+      const f = el('span');
+      f.style.width = Math.round((d.answers / maxAnswers) * 100) + '%';
+      m.appendChild(f);
+      row.appendChild(m);
+
+      let sub = plural(d.chunkCount, 'part');
+      if (d.status !== 'READY') sub += ' · ' + d.status.toLowerCase();
+      if (d.lastCitedAt) {
+        sub += ' · last cited ' + new Date(d.lastCitedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      }
+      row.appendChild(el('div', 'doc-row-sub', sub));
+
+      c3.appendChild(row);
+    });
+  }
+  usageBody.appendChild(c3);
+}
+
+async function openUsage() {
+  usageBody.textContent = '';
+  usageBody.appendChild(el('p', 'usage-note', 'Loading...'));
+  if (!usageDialog.open) usageDialog.showModal();
+
+  try {
+    const [a, b] = await Promise.all([api('/api/analytics/summary?days=14'), api('/api/analytics/documents')]);
+    if (!a.ok || !b.ok) throw new Error('request failed');
+    renderUsage(await a.json(), await b.json());
+  } catch (err) {
+    if (err.message === 'unauthorized') {   // api() already sent us back to the login screen
+      usageDialog.close();
+      return;
+    }
+    usageBody.textContent = '';
+    usageBody.appendChild(el('p', 'usage-note', 'Could not load your usage. Please try again.'));
+  }
+}
+
+// Only wire up the usage screen if its HTML is on the page, so a missing piece can never break the app
+if (usageBtn && usageDialog && usageClose && usageBody) {
+  usageBtn.addEventListener('click', openUsage);
+  usageClose.addEventListener('click', () => usageDialog.close());
+  usageDialog.addEventListener('click', (e) => {
+    if (e.target === usageDialog) usageDialog.close();   // a click on the dimmed area
+  });
+}
+
 async function init() {
   const token = getToken();
   if (!token) return showAuth();

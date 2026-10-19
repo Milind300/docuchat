@@ -64,13 +64,14 @@
     </aside>
 
       <div class="chat-pane">
-        <header>
-          <span>DocuChat</span>
-          <span class="header-right">
-            <span id="user-email"></span>
-            <button id="logout-btn" class="small">Log out</button>
-          </span>
-        </header>
+            <header>
+        <span>DocuChat</span>
+        <span class="header-right">
+          <span id="user-email"></span>
+          <button id="usage-btn" class="small" type="button">Usage</button>
+          <button id="logout-btn" class="small">Log out</button>
+        </span>
+      </header>
 
         <main id="messages"></main>
  <label id="docs-toggle"><input type="checkbox" id="use-docs" /> Use my documents</label>
@@ -86,7 +87,15 @@
         </form>
       </div>
     </div>
-
+  <dialog id="usage-dialog" aria-labelledby="usage-title">
+    <div class="usage-sheet">
+      <div class="usage-head">
+        <h2 id="usage-title">My usage</h2>
+        <button id="usage-close" class="small" type="button">Done</button>
+      </div>
+      <div id="usage-body"></div>
+    </div>
+  </dialog>
     <script src="format.js"></script>
     <script src="app.js"></script>
   </body>
