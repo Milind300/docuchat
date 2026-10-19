@@ -33,6 +33,7 @@
     "unpdf": "^1.8.1"
   },
   "devDependencies": {
+    "mongodb-memory-server": "^11.3.0",
     "vitest": "^5.0.5"
   }
 }
