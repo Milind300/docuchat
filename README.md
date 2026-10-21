@@ -6,6 +6,7 @@
 ![Express](https://img.shields.io/badge/Express-5-000000?logo=express)
 ![MongoDB](https://img.shields.io/badge/MongoDB-Atlas_Vector_Search-47A248?logo=mongodb&logoColor=white)
 ![Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?logo=google&logoColor=white)
+[![Tests](https://github.com/Milind300/docuchat/actions/workflows/test.yml/badge.svg)](https://github.com/Milind300/docuchat/actions/workflows/test.yml)
 
 <!-- Add after recording: ![Demo](docs/demo.gif) -->
 <!-- Live demo: https://YOUR-LINK -->
@@ -31,7 +32,7 @@
 | "My usage" screen with charts | Done |
 | Light and dark UI following the system setting | Done |
 | Streaming for document answers | Planned |
-| Automated tests, CI | Planned |
+| Automated tests (162) and CI with GitHub Actions | Done |
 | Deployment | Planned |
 
 ---
@@ -241,8 +242,10 @@ Known gaps in the numbers: output tokens and citation counts drop when chats are
 
 ```
 docuchat/
+├── .github/workflows/ CI: runs the tests on every push and pull request
 ├── public/            Frontend: index.html, style.css, app.js, format.js
-├── scripts/           Dev utilities (checks, tests against a running server)
+├── scripts/           Dev utilities (checks run by hand against a live setup)
+├── tests/             unit/, integration/ (Vitest + Supertest), helpers/
 └── src/
     ├── app.js         Express app wiring, security headers
     ├── server.js      Boot: check settings, connect DB, then listen
@@ -279,6 +282,23 @@ The interface follows the principles of clarity, deference and depth from Apple'
 - One accent color, a translucent blurred header, soft shadows and rounded shapes.
 - Light and dark themes follow the system setting, using one set of color tokens.
 - Visible keyboard focus, and animations switch off when the system asks for reduced motion.
+
+---
+
+## Testing
+
+`npm test` runs 162 automated tests (Vitest) in about 50 seconds, and GitHub Actions runs them on every push and pull request.
+
+| Layer | What it covers |
+|---|---|
+| Unit | Chunking, Pacific-day maths (including the days the clocks change), input checks, startup checks |
+| Integration | The real Express app, called over HTTP with Supertest, against a real MongoDB started in memory: auth, rate limits, chat, streaming, conversations, delete, analytics, and document upload and delete |
+
+No Atlas account, `.env` file or Gemini key is needed to run them. The tests use fake settings, and the AI calls are replaced by stand-ins whose answers each test controls.
+
+Behaviors the tests check include: simultaneous registrations of one email create exactly one account; limits are applied before the AI is called; deleting a chat or a document does not reset a user's quota; and one user cannot read, delete or be counted against another user's data.
+
+Deliberately not covered by automated tests: Atlas Vector Search (an Atlas-only feature), real Gemini calls, a browser disconnecting mid-stream, and the frontend. Those were checked by hand with the scripts in `scripts/` against a live setup.
 
 ---
 
@@ -339,16 +359,16 @@ Free-tier model IDs and limits change over time, so both model names are configu
 - **7-day tokens cannot be revoked early;** refresh-token rotation is a possible upgrade.
 - **The score cut-off (0.765) was tuned on two small documents** and may need adjusting.
 - **Shared free-tier quota:** one Gemini key serves all users, so the app can run out of daily capacity; the UI shows a clear message.
-- **No automated tests yet.** The app was verified with scripts against a running server.
+- **Test gaps:** vector search and real Gemini calls are not covered by automated tests, and neither is the frontend.
 
 ---
 
 ## Roadmap
 
-1. Automated tests and a GitHub Actions workflow
-2. Deployment, including the proxy setting for correct client IPs
-3. Streaming for document answers
-4. Refresh tokens or httpOnly cookies
+1. Deployment, including the proxy setting for correct client IPs
+2. Streaming for document answers
+3. Refresh tokens or httpOnly cookies
+4. Frontend tests
 
 ---
 
