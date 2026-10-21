@@ -14,9 +14,9 @@
     "type": "git",
     "url": "git+https://github.com/Milind300/docuchat.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["nodejs", "express", "mongodb", "rag", "gemini", "vector-search", "llm", "chatbot"],
+  "author": "Your Name",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/Milind300/docuchat/issues"
   },
