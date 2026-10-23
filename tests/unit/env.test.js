@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { findEnvProblems } from '../../src/config/env.js';
 
 const good = () => ({
-  MONGO_URI: 'mongodb+srv://user:secret@cluster0.example.mongodb.net/docuchat',
+   MONGO_URI: 'mongodb+srv://host.invalid/docuchat',
   JWT_SECRET: 'a'.repeat(32),
   GEMINI_API_KEY: 'AIzaSyExampleKeyForTestsOnly',
   GEMINI_MODEL: 'gemini-test-model',

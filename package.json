@@ -15,7 +15,7 @@
     "url": "git+https://github.com/Milind300/docuchat.git"
   },
   "keywords": ["nodejs", "express", "mongodb", "rag", "gemini", "vector-search", "llm", "chatbot"],
-  "author": "Your Name",
+  "author": "Milind300",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/Milind300/docuchat/issues"
