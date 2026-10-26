@@ -15,7 +15,7 @@
 
 ## Why I Built It
 
-I am a first-time developer, and I wanted one project that touches the whole path of a real application: accounts and security, a database, an AI model, a browser front end, and tests. A "chat with your documents" app (retrieval-augmented generation, or RAG) fits that well, because the answer is only as good as the search behind it.
+This is my first project built around RAG (retrieval-augmented generation), Gemini and AI. I wanted it to cover the whole path of a real application: accounts and security, a database, vector search, an AI model, a browser front end, and tests. A "chat with your documents" app fits that well, because an answer is only as good as the search behind it..
 
 I set some rules for myself:
 
