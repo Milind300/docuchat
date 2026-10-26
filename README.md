@@ -13,6 +13,19 @@
 
 ---
 
+## Why I Built It
+
+I am a first-time developer, and I wanted one project that touches the whole path of a real application: accounts and security, a database, an AI model, a browser front end, and tests. A "chat with your documents" app (retrieval-augmented generation, or RAG) fits that well, because the answer is only as good as the search behind it.
+
+I set some rules for myself:
+
+- **Stay inside the free tier.** One shared Gemini key serves every user, so the app counts its own usage and refuses work before the quota runs out.
+- **Show the evidence.** Document answers list the passages they used, so a reader can check the answer against the file.
+- **Keep one user's data away from another's.** Every query filters by the signed-in user, including the vector search.
+- **Only claim what was checked.** Automated tests cover most of the app. This README lists what they do not cover.
+
+---
+
 ## Status
 
 | Feature | State |
@@ -31,8 +44,9 @@
 | Personal analytics: questions and tokens per day, document citations | Done |
 | "My usage" screen with charts | Done |
 | Light and dark UI following the system setting | Done |
-| Streaming for document answers | Planned |
 | Automated tests (162) and CI with GitHub Actions | Done |
+| Demo account seed script | Done |
+| Streaming for document answers | Planned |
 | Deployment | Planned |
 
 ---
@@ -72,7 +86,7 @@ flowchart LR
   S --> D
 ```
 
-**Layering:** Route (HTTP only) → Service (business rules, external calls) → Model (schema and persistence). All Gemini calls live in two small service files, so swapping the model or provider touches nothing else. No state is kept in server memory: limits and counters live in MongoDB, which suits serverless hosting.
+**Layering:** Route (HTTP only) -> Service (business rules, external calls) -> Model (schema and persistence). All Gemini calls live in two small service files, so swapping the model or provider touches nothing else. No state is kept in server memory: limits and counters live in MongoDB, which suits serverless hosting.
 
 ---
 
@@ -242,20 +256,36 @@ Known gaps in the numbers: output tokens and citation counts drop when chats are
 
 ```
 docuchat/
-├── .github/workflows/ CI: runs the tests on every push and pull request
-├── public/            Frontend: index.html, style.css, app.js, format.js
-├── scripts/           Dev utilities (checks run by hand against a live setup)
-├── tests/             unit/, integration/ (Vitest + Supertest), helpers/
-└── src/
-    ├── app.js         Express app wiring, security headers
-    ├── server.js      Boot: check settings, connect DB, then listen
-    ├── config/        db, limits, rag, env, startupChecks
-    ├── middleware/    auth (JWT guard), rateLimit
-    ├── models/        User, Conversation, Message, Document, Chunk, EmbeddingLog, RateLimit
-    ├── routes/        auth, chat, chatStream, conversations, documents, analytics
-    ├── services/      gemini, usage, chunker, embeddings, embeddingBudget, ingest, search, extract, rateLimit
-    └── utils/         pacificTime.js
++-- .github/workflows/  CI: runs the tests on every push and pull request
++-- public/             Frontend: index.html, style.css, app.js, format.js
++-- scripts/            Dev utilities, run by hand (see Scripts below)
++-- tests/              unit/, integration/ (Vitest + Supertest), helpers/
++-- src/
+    +-- app.js          Express app wiring, security headers
+    +-- server.js       Boot: check settings, connect DB, then listen
+    +-- config/         db, limits, rag, env, startupChecks
+    +-- middleware/     auth (JWT guard), rateLimit
+    +-- models/         User, Conversation, Message, Document, Chunk, EmbeddingLog, RateLimit
+    +-- routes/         auth, chat, chatStream, conversations, documents, analytics
+    +-- services/       gemini, usage, chunker, embeddings, embeddingBudget, ingest, search, extract, rateLimit
+    +-- utils/          pacificTime.js
 ```
+
+---
+
+## Scripts
+
+Small utilities in `scripts/`, run by hand from the project folder with `node scripts\<name>.js`. They are not part of the app and not run by the tests.
+
+| Script | What it does |
+|---|---|
+| `check-env.js` | Runs the same settings checks the server runs at startup and prints "All settings look fine." or a list of problems. It names the setting, never its value |
+| `list-models.js` | Lists the embedding models available to your Gemini key (name, display name, supported actions) and how many were found. Chat models are not listed |
+| `seed-demo.js` | Creates the demo account (`demo@example.com`) and adds a fictional sample handbook, `northwind-handbook.txt`, as 4 searchable parts. Needs `DEMO_PASSWORD` set in the terminal, never in a file. If the account exists, its password is not changed; if the document exists, it is not added again |
+| `clear-ratelimit.js` | Connects to the database and deletes all stored login and register attempt counters (every IP), then prints how many rows it removed |
+| `live-check.js` | Asks three questions against the demo account's handbook, using real vector search and real Gemini calls, and prints PASS or FAIL for each. Uses about 3 embedding and 2 chat requests per run |
+
+**Status of `live-check.js`:** at the time of writing it has not completed a full pass. The latest attempts stopped on a `503` "high demand" error from the Gemini chat model, which is a Google-side overload and not a quota error. Treat live vector search plus a live cited answer as not re-verified until it passes.
 
 ---
 
@@ -270,6 +300,7 @@ docuchat/
 - **Uploads** are processed in memory and never written to disk. Only PDF and TXT are accepted, up to 4 MB.
 - **Prompt and output handling:** document text is treated as data in the prompt, and model output is rendered by a small formatter that builds elements with `textContent`, never `innerHTML`. The same applies to the usage screen.
 - **Secrets** live in `.env` (git-ignored). At startup the server refuses to run if `JWT_SECRET` is missing, too short or a placeholder, or if Gemini settings are missing. Messages name the setting, never its value.
+- **Repository checks:** pattern-based scans of the committed files for connection strings and key assignments found only placeholders and test values. This covers those patterns only, and GitHub secret scanning alerts are enabled on the repository.
 - **Free-tier privacy:** Google may use free-tier prompts for product improvement. Do not upload sensitive documents. The upload panel shows this warning.
 
 ---
@@ -287,7 +318,7 @@ The interface follows the principles of clarity, deference and depth from Apple'
 
 ## Testing
 
-`npm test` runs 162 automated tests (Vitest) in about 50 seconds, and GitHub Actions runs them on every push and pull request.
+`npm test` runs 162 automated tests (Vitest) in under a minute, and GitHub Actions runs them on every push and pull request.
 
 | Layer | What it covers |
 |---|---|
@@ -296,9 +327,11 @@ The interface follows the principles of clarity, deference and depth from Apple'
 
 No Atlas account, `.env` file or Gemini key is needed to run them. The tests use fake settings, and the AI calls are replaced by stand-ins whose answers each test controls.
 
+The in-memory database occasionally starts slowly. On one local run it timed out after 10 seconds and the integration tests were skipped; rerunning gave 162 of 162 passing.
+
 Behaviors the tests check include: simultaneous registrations of one email create exactly one account; limits are applied before the AI is called; deleting a chat or a document does not reset a user's quota; and one user cannot read, delete or be counted against another user's data.
 
-Deliberately not covered by automated tests: Atlas Vector Search (an Atlas-only feature), real Gemini calls, a browser disconnecting mid-stream, and the frontend. Those were checked by hand with the scripts in `scripts/` against a live setup.
+Deliberately not covered by automated tests: Atlas Vector Search (an Atlas-only feature), real Gemini calls, a browser disconnecting mid-stream, and the frontend. `scripts/live-check.js` exists for the first two (see Scripts above for its current status).
 
 ---
 
@@ -342,6 +375,15 @@ Free-tier Atlas allows 3 search indexes per cluster; this project uses 1.
 
 Free-tier model IDs and limits change over time, so both model names are configuration, not code.
 
+**Optional demo account (Windows PowerShell):**
+
+```powershell
+$env:DEMO_PASSWORD = 'choose-your-own-password'
+node scripts\seed-demo.js
+```
+
+This creates `demo@example.com` with the sample handbook. It uses about 4 embedding requests. The password is read from the terminal and is never written to a file.
+
 ---
 
 ## Known Limitations
@@ -358,17 +400,22 @@ Free-tier model IDs and limits change over time, so both model names are configu
 - **JWT in `localStorage`:** simple, but readable by injected scripts. An httpOnly cookie is the production alternative.
 - **7-day tokens cannot be revoked early;** refresh-token rotation is a possible upgrade.
 - **The score cut-off (0.765) was tuned on two small documents** and may need adjusting.
-- **Shared free-tier quota:** one Gemini key serves all users, so the app can run out of daily capacity; the UI shows a clear message.
+- **Shared free-tier quota:** one Gemini key serves all users, so the app can run out of daily capacity; the UI shows a clear message. The Gemini chat model can also return `503` during high demand, which is outside the app's control.
 - **Test gaps:** vector search and real Gemini calls are not covered by automated tests, and neither is the frontend.
 
 ---
 
-## Roadmap
+## What I Would Do Next
 
-1. Deployment, including the proxy setting for correct client IPs
-2. Streaming for document answers
-3. Refresh tokens or httpOnly cookies
-4. Frontend tests
+In order:
+
+1. **Deploy it.** Before choosing a free host, check its upload size limit, request time limit and support for streaming responses. Then set the proxy setting so client IPs are correct, allow the host in Atlas network access, and create fresh secrets.
+2. **Record a short demo and add screenshots** in light and dark, taken from the demo account.
+3. **Retry the live check** once the Gemini chat model is available, and update the Scripts section with the result.
+4. **Stream document answers**, which needs a way to read the sources line at the end of a stream.
+5. **Use the conversation when searching documents,** so vague follow-up questions find the right passages.
+6. **Move the login token to an httpOnly cookie,** or add refresh tokens.
+7. **Add frontend tests.**
 
 ---
 
