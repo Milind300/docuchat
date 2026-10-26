@@ -51,9 +51,10 @@ router.post('/', requireAuth, async (req, res) => {
       return res.status(404).json({ message: 'Conversation not found' });
     }
 
-    // 4. Load the most recent messages, then put them back in order
+    // 4. Load the most recent messages, then put them back in order.
+    // _id is the tie-breaker: a question and its answer can be saved in the same millisecond.
     const recent = await Message.find({ conversationId: convo._id })
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1, _id: -1 })
       .limit(HISTORY_LIMIT);
     history = recent.reverse().map((m) => ({ role: m.role, content: m.content }));
   }

@@ -30,8 +30,9 @@ router.get('/:id/messages', requireAuth, async (req, res) => {
     return res.status(404).json({ message: 'Conversation not found' });
   }
 
+  // _id is the tie-breaker: a question and its answer can be saved in the same millisecond.
   const messages = await Message.find({ conversationId: convo._id })
-    .sort({ createdAt: 1 })
+    .sort({ createdAt: 1, _id: 1 })
     .limit(200)
     .select('role content createdAt sources');
 

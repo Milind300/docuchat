@@ -47,8 +47,9 @@ router.post('/', requireAuth, async (req, res) => {
     if (!convo) {
       return res.status(404).json({ message: 'Conversation not found' });
     }
+    // _id is the tie-breaker: a question and its answer can be saved in the same millisecond.
     const recent = await Message.find({ conversationId: convo._id })
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1, _id: -1 })
       .limit(HISTORY_LIMIT);
     history = recent.reverse().map((m) => ({ role: m.role, content: m.content }));
   }
@@ -120,7 +121,7 @@ router.post('/', requireAuth, async (req, res) => {
       return res.end();
     }
 
-        // A cancel that left only a few characters is not worth keeping. The question stays.
+    // A cancel that left only a few characters is not worth keeping. The question stays.
     if (aborted && fullText.length < MIN_PARTIAL_LENGTH) return;
 
     // Something arrived: save it (the whole answer, or the part that arrived before a cancel or a failure)
